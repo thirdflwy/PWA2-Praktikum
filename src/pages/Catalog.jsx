@@ -1,5 +1,13 @@
 import { useState, useMemo } from 'react'
-import { RefreshCw, Plus, Loader, AlertCircle, PackageOpen } from 'lucide-react'
+import {
+  RefreshCw,
+  Plus,
+  Loader,
+  AlertCircle,
+  PackageOpen,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { useGuns } from '../hooks/useGuns'
 import GUNS_LOCAL from '../data/guns'
 import GunCard from '../components/gun/GunCard'
@@ -13,6 +21,8 @@ import {
   sortItems,
   extractCategories,
 } from '../utils/helpers'
+
+const PAGE_SIZE = 6
 
 /**
  * Catalog page — the main product listing.
@@ -42,6 +52,7 @@ export default function Catalog({ onNavigate }) {
   const [activeCategory, setActiveCategory] = useState('All')
   const [sortKey, setSortKey] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
+  const [page, setPage] = useState(1)
 
   const categories = useMemo(() => extractCategories(rawGuns), [rawGuns])
 
@@ -51,6 +62,18 @@ export default function Catalog({ onNavigate }) {
     )
     return sortItems(result, sortKey, sortOrder)
   }, [rawGuns, search, activeCategory, sortKey, sortOrder])
+
+  const pageCount = Math.ceil(filteredGuns.length / PAGE_SIZE)
+  const currentPage = Math.min(page, pageCount || 1)
+  const paginatedGuns = useMemo(
+    () => filteredGuns.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredGuns, currentPage],
+  )
+  const pageNumbers = useMemo(() => {
+    const visiblePageCount = Math.min(pageCount, 5)
+    const firstPage = Math.max(1, Math.min(currentPage - 2, pageCount - 4))
+    return Array.from({ length: visiblePageCount }, (_, index) => firstPage + index)
+  }, [currentPage, pageCount])
 
   // ---- detail view ----
   const [selectedGun, setSelectedGun] = useState(null)
@@ -120,13 +143,17 @@ export default function Catalog({ onNavigate }) {
         {/* Filters */}
         <AdvancedFilter
           search={search}
-          onSearch={setSearch}
+          onSearch={(value) => { setSearch(value); setPage(1) }}
           categories={categories}
           activeCategory={activeCategory}
-          onCategory={setActiveCategory}
+          onCategory={(category) => { setActiveCategory(category); setPage(1) }}
           sortKey={sortKey}
           sortOrder={sortOrder}
-          onSort={({ key, order }) => { setSortKey(key); setSortOrder(order) }}
+          onSort={({ key, order }) => {
+            setSortKey(key)
+            setSortOrder(order)
+            setPage(1)
+          }}
         />
 
         {/* States */}
@@ -166,16 +193,60 @@ export default function Catalog({ onNavigate }) {
         {/* Product grid */}
         {filteredGuns.length > 0 && (
           <ul className="stock">
-            {filteredGuns.map((gun) => (
+            {paginatedGuns.map((gun) => (
               <GunCard
                 key={gun.id || gun.name}
                 gun={gun}
-                onSelect={setSelectedGun}
+                onSelect={(gun) => {
+                  if (onNavigate) onNavigate('Detail', gun)
+                  else setSelectedGun(gun)
+                }}
                 onEdit={onNavigate ? (g) => onNavigate('Edit', g) : undefined}
                 onDelete={setDeleteTarget}
               />
             ))}
           </ul>
+        )}
+
+        {filteredGuns.length > 0 && (
+          <nav className="pagination" aria-label="Catalog pagination">
+            <span className="pagination__summary">
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+              {Math.min(currentPage * PAGE_SIZE, filteredGuns.length)} of {filteredGuns.length} products
+            </span>
+            <div className="pagination__controls">
+              <button
+                type="button"
+                className="pagination__button"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                aria-label="Go to previous page"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  className={`pagination__button${currentPage === pageNumber ? ' pagination__button--active' : ''}`}
+                  onClick={() => setPage(pageNumber)}
+                  aria-label={`Go to page ${pageNumber}`}
+                  aria-current={currentPage === pageNumber ? 'page' : undefined}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="pagination__button"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage === pageCount}
+                aria-label="Go to next page"
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </div>
+          </nav>
         )}
 
         {useLocal && (
@@ -209,5 +280,3 @@ export default function Catalog({ onNavigate }) {
     </>
   )
 }
-
-
