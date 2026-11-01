@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/catalog/:id",
+      "destination": "/"
+    }
+  ]
+}

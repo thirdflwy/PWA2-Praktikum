@@ -397,6 +397,57 @@
   gap: 20px;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.pagination__summary {
+  color: var(--steel);
+  font-size: 0.88rem;
+}
+
+.pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pagination__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.pagination__button:hover:not(:disabled) {
+  border-color: var(--brass);
+}
+
+.pagination__button--active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.pagination__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .card {
   position: relative;
   display: flex;
@@ -478,6 +529,69 @@
   z-index: 5;
 }
 
+.product-share {
+  position: relative;
+}
+
+.product-share__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: max-content;
+  min-width: 180px;
+  max-width: min(280px, 80vw);
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgba(24, 34, 44, 0.16);
+}
+
+.product-share__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.product-share__option:hover {
+  background: var(--paper);
+}
+
+.product-share__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 6px 8px;
+  color: var(--steel);
+  font-size: 0.78rem;
+  white-space: normal;
+}
+
+.product-share__manual-link {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+}
+
 .card-act-btn {
   width: 32px;
   height: 32px;
@@ -495,6 +609,11 @@
 
 .card-act-btn:hover {
   transform: scale(1.08);
+}
+
+.card-act-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .fav-btn {
@@ -672,7 +791,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 .detail-section {
@@ -1049,6 +1168,14 @@
 }
 
 @media (max-width: 600px) {
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pagination__controls {
+    flex-wrap: wrap;
+  }
   .form-grid,
   .form-grid--3 {
     grid-template-columns: 1fr;
