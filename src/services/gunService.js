@@ -86,6 +86,10 @@ class GunService {
         queryParts.push(`limit=${params.limit}`)
       }
 
+      if (params.page && params.limit) {
+        queryParts.push(`offset=${(params.page - 1) * params.limit}`)
+      }
+
       const queryString = queryParts.join('&')
       const data = await apiClient.get(`/rest/v1/products?${queryString}`)
       const list = Array.isArray(data) ? data.map(normalizeProduct) : []

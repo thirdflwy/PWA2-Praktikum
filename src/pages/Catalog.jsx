@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   RefreshCw,
   Plus,
@@ -34,9 +34,33 @@ const PAGE_SIZE = 6
  * Features: search, category filter, sort, CRUD actions, detail modal.
  */
 export default function Catalog({ onNavigate }) {
+  // ---- filters / sort ----
+  const [search, setSearch] = useState('')
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [sortKey, setSortKey] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [page, setPage] = useState(1)
+
   // ---- API data ----
-  const { guns: apiGuns, loading, error, refetch } = useGuns({ limit: 50 })
+  const {
+    guns: apiGuns,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore,
+    refetch,
+  } = useGuns(
+    {
+      limit: PAGE_SIZE,
+      category: activeCategory === 'All' ? '' : activeCategory,
+      sort_by: sortKey,
+      order: sortOrder,
+    },
+    { paginated: true },
+  )
   const [useLocal, setUseLocal] = useState(false)
+  const loadMoreRef = useRef(null)
 
   // Decide data source
   const rawGuns = useMemo(() => {
@@ -47,14 +71,10 @@ export default function Catalog({ onNavigate }) {
     return apiGuns
   }, [apiGuns, error, useLocal])
 
-  // ---- filters / sort ----
-  const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('All')
-  const [sortKey, setSortKey] = useState('name')
-  const [sortOrder, setSortOrder] = useState('asc')
-  const [page, setPage] = useState(1)
-
-  const categories = useMemo(() => extractCategories(rawGuns), [rawGuns])
+  const categories = useMemo(
+    () => extractCategories([...GUNS_LOCAL, ...rawGuns]),
+    [rawGuns],
+  )
 
   const filteredGuns = useMemo(() => {
     let result = rawGuns.filter(
@@ -74,6 +94,47 @@ export default function Catalog({ onNavigate }) {
     const firstPage = Math.max(1, Math.min(currentPage - 2, pageCount - 4))
     return Array.from({ length: visiblePageCount }, (_, index) => firstPage + index)
   }, [currentPage, pageCount])
+
+  const loadNextBatch = useCallback(async () => {
+    const loaded = await loadMore()
+    if (loaded && pageCount > 0 && currentPage === pageCount) {
+      setPage(currentPage + 1)
+    }
+  }, [loadMore, currentPage, pageCount])
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current
+    if (
+      !sentinel ||
+      typeof IntersectionObserver === 'undefined' ||
+      !hasMore ||
+      useLocal ||
+      error ||
+      loading ||
+      loadingMore ||
+      (pageCount > 0 && currentPage !== pageCount)
+    ) {
+      return undefined
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) loadNextBatch()
+      },
+      { rootMargin: '300px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [
+    hasMore,
+    useLocal,
+    error,
+    loading,
+    loadingMore,
+    pageCount,
+    currentPage,
+    loadNextBatch,
+  ])
 
   // ---- detail view ----
   const [selectedGun, setSelectedGun] = useState(null)
@@ -127,6 +188,7 @@ export default function Catalog({ onNavigate }) {
           <div className="list-head-right">
             <span className="count">
               {filteredGuns.length} piece{filteredGuns.length !== 1 ? 's' : ''}
+              {hasMore && !useLocal ? ' loaded' : ''}
             </span>
             {onNavigate && (
               <button
@@ -184,10 +246,17 @@ export default function Catalog({ onNavigate }) {
         )}
 
         {!loading && filteredGuns.length === 0 && !error && (
+          !hasMore || useLocal ? (
+            <div className="state-box">
+              <PackageOpen size={28} />
+              <p>No products match your search.</p>
+            </div>
+          ) : (
           <div className="state-box">
             <PackageOpen size={28} />
-            <p>No products match your search.</p>
+            <p>No matches in the products loaded so far. Load more to continue searching.</p>
           </div>
+          )
         )}
 
         {/* Product grid */}
@@ -212,7 +281,8 @@ export default function Catalog({ onNavigate }) {
           <nav className="pagination" aria-label="Catalog pagination">
             <span className="pagination__summary">
               Showing {(currentPage - 1) * PAGE_SIZE + 1}–
-              {Math.min(currentPage * PAGE_SIZE, filteredGuns.length)} of {filteredGuns.length} products
+              {Math.min(currentPage * PAGE_SIZE, filteredGuns.length)} of {filteredGuns.length}
+              {hasMore && !useLocal ? ' loaded products' : ' products'}
             </span>
             <div className="pagination__controls">
               <button
@@ -239,14 +309,40 @@ export default function Catalog({ onNavigate }) {
               <button
                 type="button"
                 className="pagination__button"
-                onClick={() => setPage(currentPage + 1)}
-                disabled={currentPage === pageCount}
+                onClick={() => {
+                  if (currentPage === pageCount && hasMore) loadNextBatch()
+                  else setPage(currentPage + 1)
+                }}
+                disabled={currentPage === pageCount && !hasMore}
                 aria-label="Go to next page"
               >
                 Next <ChevronRight size={16} />
               </button>
             </div>
           </nav>
+        )}
+
+        {hasMore && !useLocal && (
+          <div className="catalog-load-more">
+            <div ref={loadMoreRef} className="catalog-load-more__sentinel" aria-hidden="true" />
+            {error && apiGuns.length > 0 && (
+              <p className="form-error" role="alert">{error}</p>
+            )}
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={loadNextBatch}
+              disabled={loadingMore || loading}
+            >
+              {loadingMore ? (
+                <><Loader size={16} className="spin" /> Loading more products…</>
+              ) : error && apiGuns.length > 0 ? (
+                <><RefreshCw size={16} /> Retry loading products</>
+              ) : (
+                'Load more products'
+              )}
+            </button>
+          </div>
         )}
 
         {useLocal && (
